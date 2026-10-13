@@ -3,7 +3,7 @@ using System.Net;
 namespace OfficeToMarkdown.Core
 {
     /// <summary><see cref="HtmlRenderer"/> 가 만든 HTML 조각을 브라우저에서 보기 좋은 완전한 문서로 감싼다.</summary>
-    public static class HtmlDocument
+    public static class HtmlPage
     {
         private const string Style = @"
 body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; line-height: 1.6; color: #222; }

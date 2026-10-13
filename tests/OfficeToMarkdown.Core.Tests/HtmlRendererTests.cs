@@ -152,7 +152,7 @@ namespace OfficeToMarkdown.Core.Tests
         [Fact]
         public void Document_wraps_tables_in_scroll_container()
         {
-            var html = HtmlDocument.Build("a<b>.xlsx", "<p>x</p><table><tr><td>1</td></tr></table>");
+            var html = HtmlPage.Build("a<b>.xlsx", "<p>x</p><table><tr><td>1</td></tr></table>");
 
             Assert.Contains("<title>a&lt;b&gt;.xlsx</title>", html);
             Assert.Contains("<div class=\"table-wrap\"><table><tr><td>1</td></tr></table></div>", html);

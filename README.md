@@ -34,6 +34,7 @@ src/
     Model/                      블록 모델 (제목, 문단, 목록, 표, 인용, 구분선, 인라인 서식)
     MarkdownRenderer.cs         모델 → GFM 문자열 (이스케이프, 목록 번호, 표)
     HtmlRenderer.cs             모델 → HTML 조각 (클립보드 붙여넣기용, 이미지 data URI)
+    HtmlPage.cs                 HTML 조각 → 저장용 완전한 HTML 문서 (표 스크롤·스타일)
     ClipboardHtml.cs            HTML 조각 → 클립보드 CF_HTML 형식
     ClipboardMarker.cs          클립보드 감시 프로그램용 표식 형식
     Word/WordOpenXmlConverter.cs   Document.WordOpenXML(Flat OPC) → 모델

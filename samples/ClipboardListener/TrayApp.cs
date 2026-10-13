@@ -104,7 +104,7 @@ namespace ClipboardListener
                 path = stem + " (" + i + ").html";
 
             var title = string.IsNullOrEmpty(sourceName) ? baseName : sourceName;
-            var html = HtmlDocument.Build(title, fragment);
+            var html = HtmlPage.Build(title, fragment);
             File.WriteAllText(path, html, Utf8NoBom);
             return path;
         }

@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
@@ -104,20 +103,8 @@ namespace ClipboardListener
             for (int i = 2; File.Exists(path); i++)
                 path = stem + " (" + i + ").html";
 
-            var title = WebUtility.HtmlEncode(string.IsNullOrEmpty(sourceName) ? baseName : sourceName);
-            var html = "<!DOCTYPE html>\n<html lang=\"ko\">\n<head>\n<meta charset=\"utf-8\">\n"
-                       + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-                       + "<title>" + title + "</title>\n"
-                       + "<style>\n"
-                       + "body { font-family: 'Malgun Gothic', sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; line-height: 1.6; }\n"
-                       + "img { max-width: 100%; height: auto; }\n"
-                       + "table { border-collapse: collapse; margin: 1em 0; }\n"
-                       + "th, td { border: 1px solid #ccc; padding: 4px 8px; vertical-align: top; }\n"
-                       + "th { background: #f3f3f3; }\n"
-                       + "blockquote { margin: 1em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }\n"
-                       + "</style>\n</head>\n<body>\n"
-                       + fragment
-                       + "\n</body>\n</html>\n";
+            var title = string.IsNullOrEmpty(sourceName) ? baseName : sourceName;
+            var html = HtmlDocument.Build(title, fragment);
             File.WriteAllText(path, html, Utf8NoBom);
             return path;
         }

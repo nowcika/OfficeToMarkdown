@@ -75,11 +75,11 @@ namespace OfficeToMarkdown.Core.Tests
             var html = Render(new TableBlock(new List<List<List<Inline>>>
             {
                 new List<List<Inline>> { Text("A"), Text("B") },
-                new List<List<Inline>> { Text("1") },
+                new List<List<Inline>> { Text("가") },
             }));
 
             Assert.Equal("<table border=\"1\" style=\"border-collapse:collapse\">"
-                         + "<tr><th>A</th><th>B</th></tr><tr><td>1</td><td></td></tr></table>", html);
+                         + "<tr><th>A</th><th>B</th></tr><tr><td style=\"white-space:nowrap\">가</td><td></td></tr></table>", html);
         }
 
         [Fact]
@@ -125,6 +125,37 @@ namespace OfficeToMarkdown.Core.Tests
             Assert.Equal(0, bytes[bytes.Length - 1]);
             var text = Encoding.UTF8.GetString(bytes, 0, bytes.Length - 1);
             Assert.Equal("<p>한글</p>", ClipboardHtml.ExtractFragment(text));
+        }
+
+        [Theory]
+        [InlineData("1,234", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("-12.5", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("35%", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("₩1,000", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("2026-10-13", " style=\"white-space:nowrap\"")]
+        [InlineData("1,2,3", " style=\"white-space:nowrap\"")]
+        [InlineData("서울 강남1호점", " style=\"white-space:nowrap\"")]
+        [InlineData("신규 개점으로 인해 1분기 매출이 일시적으로 낮음", " style=\"min-width:14em\"")]
+        [InlineData("", "")]
+        public void Body_cells_get_style_by_content(string value, string style)
+        {
+            var html = Render(new TableBlock(new List<List<List<Inline>>>
+            {
+                new List<List<Inline>> { Text("1,234") },
+                new List<List<Inline>> { Text(value) },
+            }));
+
+            Assert.Contains("<th>1,234</th>", html); // 머리글에는 스타일을 넣지 않는다.
+            Assert.Contains("<td" + style + ">", html);
+        }
+
+        [Fact]
+        public void Document_wraps_tables_in_scroll_container()
+        {
+            var html = HtmlDocument.Build("a<b>.xlsx", "<p>x</p><table><tr><td>1</td></tr></table>");
+
+            Assert.Contains("<title>a&lt;b&gt;.xlsx</title>", html);
+            Assert.Contains("<div class=\"table-wrap\"><table><tr><td>1</td></tr></table></div>", html);
         }
     }
 }

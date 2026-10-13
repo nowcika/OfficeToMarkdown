@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using OfficeToMarkdown.Core.Model;
 
 namespace OfficeToMarkdown.Core
@@ -149,13 +150,46 @@ namespace OfficeToMarkdown.Core
                 sb.Append("<tr>");
                 for (int c = 0; c < columns; c++)
                 {
-                    var cell = c < table.Rows[i].Count ? RenderInlines(table.Rows[i][c], imageSource) : "";
-                    sb.Append('<').Append(tag).Append('>').Append(cell).Append("</").Append(tag).Append('>');
+                    var inlines = c < table.Rows[i].Count ? table.Rows[i][c] : null;
+                    var cell = inlines != null ? RenderInlines(inlines, imageSource) : "";
+                    sb.Append('<').Append(tag);
+                    if (i > 0 && inlines != null)
+                        AppendCellStyle(sb, inlines);
+                    sb.Append('>').Append(cell).Append("</").Append(tag).Append('>');
                 }
                 sb.Append("</tr>");
             }
             return sb.Append("</table>").ToString();
         }
+
+        /// <summary>짧은 셀은 이 글자 수 이하면 줄바꿈하지 않는다.</summary>
+        private const int ShortCellLength = 20;
+
+        /// <summary>
+        /// Excel 표가 읽기 좋도록 셀 모양을 정한다. 붙여넣는 프로그램(Word 등)은 CSS 를 받지 않으므로 인라인 스타일로 넣는다.
+        /// - 숫자: 오른쪽 정렬, 줄바꿈 없음
+        /// - 짧은 값(날짜, 이름 등): 줄바꿈 없음 — "2026-" / "01-03" 처럼 잘리지 않게
+        /// - 긴 문장: 최소 폭을 줘서 좁고 긴 셀이 되지 않게
+        /// </summary>
+        private static void AppendCellStyle(StringBuilder sb, List<Inline> inlines)
+        {
+            if (inlines.Count == 0 || inlines.Any(x => x.Kind != InlineKind.Text))
+                return;
+            var text = string.Concat(inlines.Select(x => x.Text)).Trim();
+            if (text.Length == 0)
+                return;
+            if (IsNumber(text))
+                sb.Append(" style=\"text-align:right;white-space:nowrap\"");
+            else if (text.Length <= ShortCellLength)
+                sb.Append(" style=\"white-space:nowrap\"");
+            else
+                sb.Append(" style=\"min-width:14em\"");
+        }
+
+        private static readonly Regex NumberPattern =
+            new Regex(@"^[-+]?[$₩€¥£]?\s?(\d{1,3}(,\d{3})+|\d+)?(\.\d+)?\s?%?$", RegexOptions.Compiled);
+
+        private static bool IsNumber(string text) => text.Any(char.IsDigit) && NumberPattern.IsMatch(text);
 
         private static string RenderInlines(List<Inline> inlines, Func<string, string> imageSource)
         {

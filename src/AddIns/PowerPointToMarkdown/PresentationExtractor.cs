@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using OfficeToMarkdown.Core.Model;
 using Office = Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
@@ -7,39 +10,60 @@ using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 namespace PowerPointToMarkdown
 {
     /// <summary>
-    /// 슬라이드마다 "## 번호. 제목" 과 도형 내용(텍스트·표·SmartArt), 발표자 노트를 블록으로 만든다.
+    /// 슬라이드마다 "## 번호. 제목" 과 도형 내용(텍스트·표·SmartArt·그림·차트), 발표자 노트를 블록으로 만든다.
     /// 도형은 위→아래, 왼쪽→오른쪽 순서로 읽는다.
     /// </summary>
-    internal static class PresentationExtractor
+    internal sealed class PresentationExtractor
     {
-        public static DocumentContent Extract(PowerPoint.Presentation presentation)
+        // Office 2016 이상의 SVG 아이콘 등(msoGraphic). Office 2013 interop 의 MsoShapeType 에는 없는 값이다.
+        private const int MsoGraphic = 28;
+
+        private readonly string _assetFolder;
+        private readonly DocumentContent _content = new DocumentContent();
+        private int _slideNumber;
+        private int _imageNumber;
+
+        private PresentationExtractor(string assetFolder)
         {
-            var content = new DocumentContent();
+            _assetFolder = assetFolder.TrimEnd('/');
+        }
+
+        /// <param name="assetFolder">그림을 저장할 폴더의 Markdown 파일 기준 상대 경로 (예: "발표_files").</param>
+        public static DocumentContent Extract(PowerPoint.Presentation presentation, string assetFolder)
+        {
+            var extractor = new PresentationExtractor(assetFolder);
             foreach (PowerPoint.Slide slide in presentation.Slides)
-            {
-                if (content.Blocks.Count > 0)
-                    content.Blocks.Add(new RuleBlock());
+                extractor.AppendSlide(slide);
+            return extractor._content;
+        }
 
-                var titleShape = slide.Shapes.HasTitle == Office.MsoTriState.msoTrue ? slide.Shapes.Title : null;
-                var title = titleShape != null ? PlainText(titleShape) : "";
-                content.Blocks.Add(new HeadingBlock(2, title.Length > 0
-                    ? slide.SlideIndex + ". " + title
-                    : "슬라이드 " + slide.SlideIndex));
+        private void AppendSlide(PowerPoint.Slide slide)
+        {
+            var blocks = _content.Blocks;
+            _slideNumber = slide.SlideIndex;
+            _imageNumber = 0;
 
-                var shapes = slide.Shapes.Cast<PowerPoint.Shape>()
-                    .Where(s => titleShape == null || s.Id != titleShape.Id);
-                foreach (var shape in InReadingOrder(shapes))
-                    AppendShape(shape, content.Blocks);
+            if (blocks.Count > 0)
+                blocks.Add(new RuleBlock());
 
-                AppendNotes(slide, content.Blocks);
-            }
-            return content;
+            var titleShape = slide.Shapes.HasTitle == Office.MsoTriState.msoTrue ? slide.Shapes.Title : null;
+            var title = titleShape != null ? PlainText(titleShape) : "";
+            blocks.Add(new HeadingBlock(2, title.Length > 0
+                ? _slideNumber + ". " + title
+                : "슬라이드 " + _slideNumber));
+
+            var shapes = slide.Shapes.Cast<PowerPoint.Shape>()
+                .Where(s => titleShape == null || s.Id != titleShape.Id);
+            foreach (var shape in InReadingOrder(shapes))
+                AppendShape(shape, blocks);
+
+            AppendNotes(slide, blocks);
         }
 
         private static IEnumerable<PowerPoint.Shape> InReadingOrder(IEnumerable<PowerPoint.Shape> shapes) =>
             shapes.OrderBy(s => s.Top).ThenBy(s => s.Left);
 
-        private static void AppendShape(PowerPoint.Shape shape, List<Block> blocks)
+        private void AppendShape(PowerPoint.Shape shape, List<Block> blocks)
         {
             if (shape.Type == Office.MsoShapeType.msoGroup)
             {
@@ -59,12 +83,71 @@ namespace PowerPointToMarkdown
                         blocks.Add(new ListItemBlock(node.Level - 1, false, Inline.FromPlainText(text)));
                 }
             }
+            else if (IsImageLike(shape))
+            {
+                var path = ExportImage(shape);
+                if (path != null)
+                    blocks.Add(new ParagraphBlock(new List<Inline> { Inline.Image(path, AltText(shape)) }));
+            }
             else if (shape.HasTextFrame == Office.MsoTriState.msoTrue
                      && shape.TextFrame.HasText == Office.MsoTriState.msoTrue)
             {
                 AppendTextRange(shape.TextFrame.TextRange, blocks);
             }
-            // 그림·차트·미디어는 현재 건너뛴다.
+            // 미디어(동영상·오디오)와 그 밖의 도형은 건너뛴다.
+        }
+
+        /// <summary>그림, 연결된 그림, 그림이 들어간 개체 틀, SVG 아이콘, 차트를 이미지로 내보낸다.</summary>
+        private static bool IsImageLike(PowerPoint.Shape shape)
+        {
+            var type = shape.Type;
+            if (type == Office.MsoShapeType.msoPicture || type == Office.MsoShapeType.msoLinkedPicture
+                || (int)type == MsoGraphic || shape.HasChart == Office.MsoTriState.msoTrue)
+                return true;
+            return type == Office.MsoShapeType.msoPlaceholder
+                   && shape.PlaceholderFormat.ContainedType == Office.MsoShapeType.msoPicture;
+        }
+
+        /// <summary>
+        /// 문서화되지 않은 Shape.Export 로 도형을 PNG 로 렌더링해 리소스에 등록한다.
+        /// 자르기·크기 조절이 반영된 화면 모습 그대로 저장되며, 실패한 도형은 건너뛴다.
+        /// </summary>
+        private string ExportImage(PowerPoint.Shape shape)
+        {
+            var tempFile = Path.Combine(Path.GetTempPath(), "OfficeToMarkdown_" + Guid.NewGuid().ToString("N") + ".png");
+            try
+            {
+                shape.Export(tempFile, PowerPoint.PpShapeFormat.ppShapeFormatPNG);
+                if (!File.Exists(tempFile))
+                    return null;
+
+                _imageNumber++;
+                var path = _assetFolder + "/slide" + _slideNumber + "_" + _imageNumber + ".png";
+                _content.Resources[path] = File.ReadAllBytes(tempFile);
+                return path;
+            }
+            catch (COMException)
+            {
+                return null;
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch (IOException)
+                {
+                }
+            }
+        }
+
+        private static string AltText(PowerPoint.Shape shape)
+        {
+            var alt = (shape.AlternativeText ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
+            if (alt.Length == 0)
+                alt = shape.HasChart == Office.MsoTriState.msoTrue ? "chart" : "image";
+            return alt;
         }
 
         /// <summary>문단 단위로 읽어 글머리 기호가 있으면 목록 항목, 없으면 일반 문단으로 만든다.</summary>

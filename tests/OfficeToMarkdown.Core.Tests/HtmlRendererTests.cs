@@ -116,5 +116,15 @@ namespace OfficeToMarkdown.Core.Tests
             Assert.Null(ClipboardHtml.ExtractFragment("<p>머리글 없음</p>"));
             Assert.Null(ClipboardHtml.ExtractFragment("StartFragment:0000000010\r\nEndFragment:0000009999\r\n"));
         }
+
+        [Fact]
+        public void Clipboard_bytes_are_utf8_with_trailing_nul()
+        {
+            var bytes = ClipboardHtml.FormatBytes("<p>한글</p>");
+
+            Assert.Equal(0, bytes[bytes.Length - 1]);
+            var text = Encoding.UTF8.GetString(bytes, 0, bytes.Length - 1);
+            Assert.Equal("<p>한글</p>", ClipboardHtml.ExtractFragment(text));
+        }
     }
 }

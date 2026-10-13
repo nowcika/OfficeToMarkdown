@@ -98,7 +98,7 @@ namespace OfficeToMarkdown.AddIns
                 });
                 var dataObject = new DataObject();
                 dataObject.SetData(DataFormats.UnicodeText, markdown);
-                dataObject.SetData(DataFormats.Html, ClipboardHtml.Format(html));
+                dataObject.SetData(DataFormats.Html, new MemoryStream(ClipboardHtml.FormatBytes(html)));
                 dataObject.SetData(ClipboardMarker.FormatName, new MemoryStream(ClipboardMarker.Create(sourceName).ToBytes()));
                 Clipboard.SetDataObject(dataObject, true, 5, 100);
                 return true;

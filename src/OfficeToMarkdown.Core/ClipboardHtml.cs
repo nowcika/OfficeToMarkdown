@@ -4,7 +4,7 @@ namespace OfficeToMarkdown.Core
 {
     /// <summary>
     /// Windows 클립보드 "HTML Format"(CF_HTML) 문자열을 만든다.
-    /// 머리글의 오프셋은 UTF-8 바이트 기준이며, .NET Framework 4.5 이상의 DataObject 는 이 문자열을 UTF-8 로 기록한다.
+    /// 머리글의 오프셋은 UTF-8 바이트 기준이다.
     /// https://learn.microsoft.com/windows/win32/dataxchg/html-clipboard-format
     /// </summary>
     public static class ClipboardHtml
@@ -27,6 +27,14 @@ namespace OfficeToMarkdown.Core
             return string.Format(HeaderFormat, headerLength, endHtml, startFragment, endFragment)
                    + Prefix + fragment + Suffix;
         }
+
+        /// <summary>
+        /// 클립보드에 그대로 넣을 CF_HTML 바이트 (UTF-8, 끝에 NUL).
+        /// DataObject 에 문자열로 넣으면 .NET Framework 는 앱이 4.5 이상을 대상으로 한다고 판단될 때만 UTF-8 로 기록하고
+        /// 그렇지 않으면 시스템 코드 페이지(한국어 Windows 는 CP949)로 기록해 한글이 깨진다.
+        /// Office 프로세스 안에서 도는 VSTO 추가 기능은 이 판단이 틀릴 수 있으므로 바이트를 직접 넣는다.
+        /// </summary>
+        public static byte[] FormatBytes(string fragment) => Encoding.UTF8.GetBytes(Format(fragment) + "\0");
 
         /// <summary>CF_HTML 문자열에서 StartFragment~EndFragment 사이의 HTML 조각을 꺼낸다.</summary>
         /// <returns>머리글이 없거나 오프셋이 맞지 않으면 null.</returns>

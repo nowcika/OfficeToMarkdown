@@ -1,8 +1,7 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using OfficeToMarkdown.Core;
 using OfficeToMarkdown.Core.Model;
 using Office = Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
@@ -114,32 +113,22 @@ namespace PowerPointToMarkdown
         /// </summary>
         private string ExportImage(PowerPoint.Shape shape)
         {
-            var tempFile = Path.Combine(Path.GetTempPath(), "OfficeToMarkdown_" + Guid.NewGuid().ToString("N") + ".png");
+            byte[] data;
             try
             {
-                shape.Export(tempFile, PowerPoint.PpShapeFormat.ppShapeFormatPNG);
-                if (!File.Exists(tempFile))
-                    return null;
-
-                _imageNumber++;
-                var path = _assetFolder + "/slide" + _slideNumber + "_" + _imageNumber + ".png";
-                _content.Resources[path] = File.ReadAllBytes(tempFile);
-                return path;
+                data = TempFileExport.Capture(file => shape.Export(file, PowerPoint.PpShapeFormat.ppShapeFormatPNG), ".png");
             }
             catch (COMException)
             {
                 return null;
             }
-            finally
-            {
-                try
-                {
-                    File.Delete(tempFile);
-                }
-                catch (IOException)
-                {
-                }
-            }
+            if (data == null)
+                return null;
+
+            _imageNumber++;
+            var path = _assetFolder + "/slide" + _slideNumber + "_" + _imageNumber + ".png";
+            _content.Resources[path] = data;
+            return path;
         }
 
         private static string AltText(PowerPoint.Shape shape)

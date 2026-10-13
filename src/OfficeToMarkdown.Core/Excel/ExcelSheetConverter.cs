@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using OfficeToMarkdown.Core.Model;
 
 namespace OfficeToMarkdown.Core.Excel
@@ -21,16 +22,23 @@ namespace OfficeToMarkdown.Core.Excel
         };
 
         /// <summary>
-        /// 시트 이름을 제목으로, 값을 표로 추가한다. 내용이 없는 시트는 건너뛴다.
+        /// 시트 이름을 제목으로, 값을 표로, 차트를 그 아래 이미지로 추가한다. 값도 차트도 없는 시트는 건너뛴다.
         /// </summary>
-        /// <param name="values">Range.Value 결과. COM 에서 오는 배열은 1부터 시작하지만 하한에 관계없이 처리한다.</param>
-        public static void AppendSheet(DocumentContent content, string sheetName, object[,] values)
+        /// <param name="values">Range.Value 결과. COM 에서 오는 배열은 1부터 시작하지만 하한에 관계없이 처리한다. 차트 시트는 null.</param>
+        /// <param name="charts">리소스로 이미 등록한 차트 이미지(Inline.Image). 시트 안의 배치 순서대로 넘긴다.</param>
+        public static void AppendSheet(DocumentContent content, string sheetName, object[,] values,
+                                       IEnumerable<Inline> charts = null)
         {
             var table = ToTable(values);
-            if (table == null)
+            var images = charts?.ToList() ?? new List<Inline>();
+            if (table == null && images.Count == 0)
                 return;
+
             content.Blocks.Add(new HeadingBlock(2, sheetName));
-            content.Blocks.Add(table);
+            if (table != null)
+                content.Blocks.Add(table);
+            foreach (var image in images)
+                content.Blocks.Add(new ParagraphBlock(new List<Inline> { image }));
         }
 
         /// <summary>뒤쪽의 빈 행·열을 잘라낸 표를 만든다. 모든 셀이 비어 있으면 null.</summary>

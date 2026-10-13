@@ -50,6 +50,31 @@ namespace OfficeToMarkdown.Core.Tests
             Assert.Empty(content.Blocks);
         }
 
+        [Fact]
+        public void Charts_are_placed_below_the_table()
+        {
+            var content = new DocumentContent();
+            ExcelSheetConverter.AppendSheet(content, "매출", OneBased(new object[,] { { "월", "금액" }, { "1월", 100.0 } }),
+                                            new[] { Inline.Image("매출_files/sheet1_chart1.png", "월별 매출") });
+
+            Assert.Equal(
+                "## 매출\n\n" +
+                "| 월 | 금액 |\n" +
+                "| --- | --- |\n" +
+                "| 1월 | 100 |\n\n" +
+                "![월별 매출](매출_files/sheet1_chart1.png)\n",
+                MarkdownRenderer.Render(content.Blocks));
+        }
+
+        [Fact]
+        public void Chart_sheet_without_values_still_gets_heading()
+        {
+            var content = new DocumentContent();
+            ExcelSheetConverter.AppendSheet(content, "차트1", null, new[] { Inline.Image("a_files/sheet2_chart1.png", "추이") });
+
+            Assert.Equal("## 차트1\n\n![추이](a_files/sheet2_chart1.png)\n", MarkdownRenderer.Render(content.Blocks));
+        }
+
         [Theory]
         [InlineData(-2146826281, "#DIV/0!")]
         [InlineData(-2146826246, "#N/A")]

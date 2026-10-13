@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- VSTO 추가 기능(.NET Framework 4.7.2 이상)에서 참조할 수 있도록 netstandard2.0 으로 빌드한다. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <RootNamespace>OfficeToMarkdown.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>

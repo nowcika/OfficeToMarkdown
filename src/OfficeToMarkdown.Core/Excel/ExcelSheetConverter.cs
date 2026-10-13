@@ -78,6 +78,21 @@ namespace OfficeToMarkdown.Core.Excel
             return new TableBlock(rows);
         }
 
+        /// <summary>
+        /// 셀에 표시되는 문자열(Range.Text)이 쓸 만하면 그것을, 아니면 값을 서식 없이 바꾼 문자열을 돌려준다.
+        /// 열이 좁으면 Range.Text 는 "####" 이 되므로 그때는 값을 쓴다.
+        /// </summary>
+        public static string DisplayText(object value, string text)
+        {
+            var trimmed = text?.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.All(ch => ch == '#'))
+                return FormatValue(value);
+            return trimmed;
+        }
+
+        /// <summary>Range.Text 로 표시 문자열을 읽어야 하는 값인지. 문자열·빈 셀은 값 그대로가 표시 문자열이다.</summary>
+        public static bool NeedsDisplayText(object value) => value != null && !(value is string);
+
         public static string FormatValue(object value)
         {
             if (value == null)

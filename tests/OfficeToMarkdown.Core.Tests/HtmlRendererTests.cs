@@ -132,6 +132,10 @@ namespace OfficeToMarkdown.Core.Tests
         [InlineData("-12.5", " style=\"text-align:right;white-space:nowrap\"")]
         [InlineData("35%", " style=\"text-align:right;white-space:nowrap\"")]
         [InlineData("₩1,000", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("(1,000)", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("1.23E+11", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("1,000원", " style=\"text-align:right;white-space:nowrap\"")]
+        [InlineData("₩-500", " style=\"text-align:right;white-space:nowrap\"")]
         [InlineData("2026-10-13", " style=\"white-space:nowrap\"")]
         [InlineData("1,2,3", " style=\"white-space:nowrap\"")]
         [InlineData("서울 강남1호점", " style=\"white-space:nowrap\"")]
@@ -150,12 +154,12 @@ namespace OfficeToMarkdown.Core.Tests
         }
 
         [Fact]
-        public void Document_wraps_tables_in_scroll_container()
+        public void Page_has_title_and_keeps_tables_unwrapped()
         {
             var html = HtmlPage.Build("a<b>.xlsx", "<p>x</p><table><tr><td>1</td></tr></table>");
 
             Assert.Contains("<title>a&lt;b&gt;.xlsx</title>", html);
-            Assert.Contains("<div class=\"table-wrap\"><table><tr><td>1</td></tr></table></div>", html);
+            Assert.Contains("<body>\n<p>x</p><table><tr><td>1</td></tr></table>\n</body>", html);
         }
     }
 }

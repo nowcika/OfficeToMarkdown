@@ -186,8 +186,10 @@ namespace OfficeToMarkdown.Core
                 sb.Append(" style=\"min-width:14em\"");
         }
 
-        private static readonly Regex NumberPattern =
-            new Regex(@"^[-+]?[$₩€¥£]?\s?(\d{1,3}(,\d{3})+|\d+)?(\.\d+)?\s?%?$", RegexOptions.Compiled);
+        // Excel 표시 형식으로 나오는 숫자: -1,234.5 / ₩1,000 / $ 12.00 / 35% / (1,000) / 1.23E+11 / 1,000원
+        private static readonly Regex NumberPattern = new Regex(
+            @"^\(?[-+]?[$₩€¥£]?\s?[-+]?(\d{1,3}(,\d{3})+|\d+)?(\.\d+)?([eE][-+]?\d+)?\s?[%원]?\)?$",
+            RegexOptions.Compiled);
 
         private static bool IsNumber(string text) => text.Any(char.IsDigit) && NumberPattern.IsMatch(text);
 

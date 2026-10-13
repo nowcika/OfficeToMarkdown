@@ -88,5 +88,25 @@ namespace OfficeToMarkdown.Core.Tests
         {
             Assert.Equal("2026-10-13 09:30:00", ExcelSheetConverter.FormatValue(new DateTime(2026, 10, 13, 9, 30, 0)));
         }
+
+        [Theory]
+        [InlineData(2561818.0, "2,561,818", "2,561,818")]
+        [InlineData(0.125, " 12.5% ", "12.5%")]
+        [InlineData(1234567.0, "########", "1234567")]
+        [InlineData(1234567.0, "", "1234567")]
+        [InlineData(1234567.0, null, "1234567")]
+        public void Display_text_is_used_unless_column_too_narrow(double value, string text, string expected)
+        {
+            Assert.Equal(expected, ExcelSheetConverter.DisplayText(value, text));
+        }
+
+        [Fact]
+        public void Only_non_string_values_need_display_text()
+        {
+            Assert.True(ExcelSheetConverter.NeedsDisplayText(1.0));
+            Assert.True(ExcelSheetConverter.NeedsDisplayText(new DateTime(2026, 1, 1)));
+            Assert.False(ExcelSheetConverter.NeedsDisplayText("글자"));
+            Assert.False(ExcelSheetConverter.NeedsDisplayText(null));
+        }
     }
 }

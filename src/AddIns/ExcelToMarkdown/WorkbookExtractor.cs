@@ -54,10 +54,13 @@ namespace ExcelToMarkdown
                 return;
 
             // Value2 와 달리 Value 는 날짜 셀을 DateTime 으로 돌려준다. 한 번에 배열로 읽어 COM 호출을 줄인다.
-            object value = sheet.UsedRange.Value[Excel.XlRangeValueDataType.xlRangeValueDefault];
+            var usedRange = sheet.UsedRange;
+            object value = usedRange.Value[Excel.XlRangeValueDataType.xlRangeValueDefault];
             var values = value as object[,];
             if (values == null && value != null)
                 values = new object[,] { { value } }; // 사용 범위가 셀 하나면 배열이 아닌 값이 온다.
+            if (values != null)
+                ApplyDisplayText(usedRange, values);
 
             var chartObjects = ((Excel.ChartObjects)sheet.ChartObjects()).Cast<Excel.ChartObject>()
                 .Where(c => c.Visible)
@@ -74,6 +77,47 @@ namespace ExcelToMarkdown
             }
 
             ExcelSheetConverter.AppendSheet(_content, sheet.Name, values, images);
+        }
+
+        /// <summary>표시 문자열을 셀마다 읽으면 COM 호출이 셀 수만큼 생기므로, 이보다 많으면 값을 그대로 쓴다.</summary>
+        private const int MaxDisplayTextCells = 50000;
+
+        /// <summary>
+        /// 숫자·날짜 셀을 Excel 에 보이는 그대로(천 단위 구분, 통화, 소수 자릿수, 날짜 형식 등)의 문자열로 바꾼다.
+        /// Range.Text 는 여러 셀에 대해 한 번에 읽을 수 없어 셀마다 읽는다.
+        /// </summary>
+        private static void ApplyDisplayText(Excel.Range usedRange, object[,] values)
+        {
+            int r0 = values.GetLowerBound(0), c0 = values.GetLowerBound(1);
+            int rows = values.GetLength(0), cols = values.GetLength(1);
+
+            int count = 0;
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                    if (ExcelSheetConverter.NeedsDisplayText(values[r0 + r, c0 + c]))
+                        count++;
+            if (count > MaxDisplayTextCells)
+                return;
+
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    var cellValue = values[r0 + r, c0 + c];
+                    if (!ExcelSheetConverter.NeedsDisplayText(cellValue))
+                        continue;
+                    string text;
+                    try
+                    {
+                        text = ((Excel.Range)usedRange.Cells[r + 1, c + 1]).Text as string;
+                    }
+                    catch (COMException)
+                    {
+                        continue;
+                    }
+                    values[r0 + r, c0 + c] = ExcelSheetConverter.DisplayText(cellValue, text);
+                }
+            }
         }
 
         /// <summary>Chart.Export 로 PNG 를 만들어 리소스에 등록한다. 실패하면 null.</summary>

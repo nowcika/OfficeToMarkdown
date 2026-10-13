@@ -1,0 +1,22 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+  <!--
+    사용자별 MSI. Windows 에서만 빌드된다 (installer\build.ps1 이 추가 기능·수신기 빌드부터 MSI 까지 한 번에 처리).
+    직접 빌드할 때: dotnet build installer -c Release -p:ProductVersion=1.2.0
+  -->
+  <PropertyGroup>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.0</ProductVersion>
+    <OutputName>OfficeToMarkdown-$(ProductVersion)</OutputName>
+    <!-- Visual Studio 로 빌드한 VSTO 추가 기능 출력: <AddInsDir>\<앱>ToMarkdown\bin\<AddInConfiguration>\ -->
+    <AddInsDir Condition="'$(AddInsDir)' == ''">$(MSBuildThisFileDirectory)..\src\AddIns</AddInsDir>
+    <AddInConfiguration Condition="'$(AddInConfiguration)' == ''">Release</AddInConfiguration>
+    <!-- dotnet publish 한 수신기 (단일 exe) -->
+    <ListenerDir Condition="'$(ListenerDir)' == ''">$(MSBuildThisFileDirectory)..\artifacts\listener</ListenerDir>
+    <DefineConstants>ProductVersion=$(ProductVersion);AddInsDir=$(AddInsDir);AddInConfiguration=$(AddInConfiguration);ListenerDir=$(ListenerDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+</Project>

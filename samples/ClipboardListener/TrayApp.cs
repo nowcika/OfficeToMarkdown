@@ -41,7 +41,7 @@ namespace ClipboardListener
             _tray.DoubleClick += (s, e) => OpenFolder();
             _tray.BalloonTipClicked += (s, e) => OpenLastFile();
 
-            _watcher = new ClipboardWatcher(OnClipboardUpdate);
+            _watcher = new ClipboardWatcher(OnClipboardUpdate, ExitThread);
         }
 
         protected override void Dispose(bool disposing)

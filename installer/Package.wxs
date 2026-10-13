@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  OfficeToMarkdown 사용자별 설치 패키지 (관리자 권한 불필요).
+
+  설치 위치: %LocalAppData%\Programs\OfficeToMarkdown\{Word,Excel,PowerPoint,Listener}
+  - 추가 기능: HKCU\Software\Microsoft\Office\<앱>\Addins\<앱>ToMarkdown 에 등록 (Manifest 는 |vstolocal 로 설치 폴더에서 바로 로드)
+  - 수신기: HKCU\...\Run 으로 로그인 시 자동 실행, 설치 직후 바로 실행, 시작 메뉴 바로 가기
+  - 업그레이드·제거 시 실행 중인 수신기는 WM_CLOSE 로 닫는다 (안 닫히면 강제 종료).
+
+  사용자 프로필 폴더에 설치하는 구성 요소는 HKCU 레지스트리 값을 KeyPath 로 써야 하고(ICE38),
+  만든 폴더마다 RemoveFolder 가 있어야 한다(ICE64).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="OfficeToMarkdown"
+           Manufacturer="nowcika"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="6cb092db-1a02-4b43-8222-8b5463de3219"
+           Scope="perUser"
+           Language="1042"
+           Codepage="949">
+
+    <MajorUpgrade DowngradeErrorMessage="더 새로운 버전의 OfficeToMarkdown 이 이미 설치되어 있습니다." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- VSTO 추가 기능은 .NET Framework 4.8 이 필요하다. (Release 값은 4.8 이상이 모두 6자리라 문자열 비교로 충분) -->
+    <Property Id="NETFX4RELEASE">
+      <RegistrySearch Root="HKLM" Key="SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" Name="Release" Type="raw" Bitness="always64" />
+    </Property>
+    <Launch Condition="Installed OR (NETFX4RELEASE &gt;= &quot;#528040&quot;)"
+            Message="OfficeToMarkdown 을 사용하려면 .NET Framework 4.8 이상이 필요합니다." />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="LocalProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="OfficeToMarkdown">
+          <Directory Id="WordFolder" Name="Word" />
+          <Directory Id="ExcelFolder" Name="Excel" />
+          <Directory Id="PowerPointFolder" Name="PowerPoint" />
+          <Directory Id="ListenerFolder" Name="Listener" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="OfficeToMarkdown">
+
+      <?foreach App in Word;Excel;PowerPoint?>
+      <Component Id="$(var.App)AddIn" Directory="$(var.App)Folder">
+        <RegistryValue Root="HKCU" Key="Software\OfficeToMarkdown\Components" Name="$(var.App)AddIn"
+                       Type="integer" Value="1" KeyPath="yes" />
+
+        <File Id="$(var.App)Dll" Source="$(var.AddInsDir)\$(var.App)ToMarkdown\bin\$(var.AddInConfiguration)\$(var.App)ToMarkdown.dll" />
+        <File Id="$(var.App)DllManifest" Source="$(var.AddInsDir)\$(var.App)ToMarkdown\bin\$(var.AddInConfiguration)\$(var.App)ToMarkdown.dll.manifest" />
+        <File Id="$(var.App)Vsto" Source="$(var.AddInsDir)\$(var.App)ToMarkdown\bin\$(var.AddInConfiguration)\$(var.App)ToMarkdown.vsto" />
+        <File Id="$(var.App)Core" Source="$(var.AddInsDir)\$(var.App)ToMarkdown\bin\$(var.AddInConfiguration)\OfficeToMarkdown.Core.dll" />
+        <File Id="$(var.App)ToolsUtilities" Source="$(var.AddInsDir)\$(var.App)ToMarkdown\bin\$(var.AddInConfiguration)\Microsoft.Office.Tools.Common.v4.0.Utilities.dll" />
+
+        <RegistryKey Root="HKCU" Key="Software\Microsoft\Office\$(var.App)\Addins\$(var.App)ToMarkdown">
+          <RegistryValue Name="FriendlyName" Type="string" Value="OfficeToMarkdown" />
+          <RegistryValue Name="Description" Type="string" Value="현재 파일을 Markdown 으로 변환해 클립보드에 복사합니다." />
+          <!-- 3 = Office 시작 시 로드 -->
+          <RegistryValue Name="LoadBehavior" Type="integer" Value="3" />
+          <RegistryValue Name="Manifest" Type="string" Value="file:///[$(var.App)Folder]$(var.App)ToMarkdown.vsto|vstolocal" />
+        </RegistryKey>
+
+        <RemoveFolder Id="Remove$(var.App)Folder" On="uninstall" />
+      </Component>
+      <?endforeach?>
+
+      <Component Id="Listener" Directory="ListenerFolder">
+        <RegistryValue Root="HKCU" Key="Software\OfficeToMarkdown\Components" Name="Listener"
+                       Type="integer" Value="1" KeyPath="yes" />
+
+        <File Id="ListenerExe" Source="$(var.ListenerDir)\ClipboardListener.exe" />
+
+        <!-- 로그인할 때 자동 실행 -->
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                       Name="OfficeToMarkdown.ClipboardListener" Type="string" Value="&quot;[#ListenerExe]&quot;" />
+
+        <util:CloseApplication Id="CloseListener" Target="ClipboardListener.exe"
+                               CloseMessage="yes" TerminateProcess="1" RebootPrompt="no" />
+
+        <RemoveFolder Id="RemoveListenerFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveLocalProgramsFolder" Directory="LocalProgramsFolder" On="uninstall" />
+      </Component>
+
+      <Component Id="ListenerShortcut" Directory="ProgramMenuFolder">
+        <RegistryValue Root="HKCU" Key="Software\OfficeToMarkdown\Components" Name="ListenerShortcut"
+                       Type="integer" Value="1" KeyPath="yes" />
+        <Shortcut Id="ListenerStartMenu" Name="OfficeToMarkdown 수신기"
+                  Description="복사한 Office 문서를 HTML 로 저장하는 트레이 프로그램"
+                  Target="[#ListenerExe]" WorkingDirectory="ListenerFolder" />
+      </Component>
+
+    </Feature>
+
+    <!-- 설치(업그레이드 포함)가 끝나면 수신기를 바로 실행한다. 제거할 때는 실행하지 않는다. -->
+    <CustomAction Id="LaunchListener" FileRef="ListenerExe" ExeCommand="" Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchListener" After="InstallFinalize" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+    </InstallExecuteSequence>
+
+  </Package>
+</Wix>

@@ -80,7 +80,31 @@ VSTO 프로젝트는 서명 인증서·매니페스트가 템플릿으로 생성
    4. **참조 추가**: 프로젝트 참조 `OfficeToMarkdown.Core`, 어셈블리 `System.Windows.Forms`.
 4. 시작 프로젝트로 지정하고 F5 → Office 가 실행되며 홈 탭에 **MD로 복사** 버튼이 나타난다.
 
-배포는 각 프로젝트의 **게시**(ClickOnce) 또는 MSI 설치 관리자를 사용한다.
+## MSI 설치 파일 만들기 (Windows)
+
+`installer/` 의 WiX v5 프로젝트로 **사용자별**(관리자 권한 불필요) MSI 를 만든다. 추가 기능 3개와 수신기가 함께 설치된다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\build.ps1 -Version 1.0.0
+# → artifacts\OfficeToMarkdown-1.0.0.msi
+```
+
+`build.ps1` 은 ① Visual Studio MSBuild 로 솔루션(추가 기능) 빌드 → ② 수신기를 self-contained 단일 exe 로 게시 → ③ MSI 빌드 순으로 진행한다.
+솔루션에 VSTO 프로젝트 3개가 추가되어 있어야 하고, 각 출력 폴더(`src\AddIns\<앱>ToMarkdown\bin\Release\`)에
+`<앱>ToMarkdown.dll`, `.dll.manifest`, `.vsto`, `OfficeToMarkdown.Core.dll`, `Microsoft.Office.Tools.Common.v4.0.Utilities.dll` 이 있어야 한다.
+
+설치 결과:
+
+| 항목 | 위치 |
+| --- | --- |
+| 파일 | `%LocalAppData%\Programs\OfficeToMarkdown\{Word,Excel,PowerPoint,Listener}` |
+| 추가 기능 등록 | `HKCU\Software\Microsoft\Office\<앱>\Addins\<앱>ToMarkdown` (`LoadBehavior=3`, `Manifest=...vsto\|vstolocal`) |
+| 수신기 자동 실행 | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` + 설치 직후 실행 + 시작 메뉴 바로 가기 |
+
+- 같은 `UpgradeCode` 로 버전만 올려 빌드하면 이전 버전을 자동으로 제거하고 설치한다(업그레이드). 이때 실행 중인 수신기는 닫았다가 다시 실행한다.
+- .NET Framework 4.8 이 없으면 설치를 중단한다. VSTO Runtime 은 검사하지 않는다(대부분 Office 와 함께 설치됨).
+- 매니페스트를 Visual Studio 임시 인증서로 서명하면 처음 로드할 때 "게시자를 확인할 수 없습니다" 확인 창이 뜰 수 있다.
+  배포용으로는 코드 서명 인증서로 서명하는 것을 권장한다.
 
 ## 테스트
 

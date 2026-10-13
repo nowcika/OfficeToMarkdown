@@ -29,7 +29,7 @@ namespace PowerPointToMarkdown
             }
 
             var presentation = app.ActivePresentation;
-            ExportCommand.Run(owner, presentation.Path, presentation.Name,
+            ExportCommand.Run(owner, presentation.Name,
                               assetFolder => PresentationExtractor.Extract(presentation, assetFolder));
         }
     }

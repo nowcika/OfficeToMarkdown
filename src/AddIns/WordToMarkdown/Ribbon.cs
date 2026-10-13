@@ -31,7 +31,7 @@ namespace WordToMarkdown
             var document = app.ActiveDocument;
             var owner = new IntPtr(app.ActiveWindow.Hwnd);
             // WordOpenXML 은 문서 전체를 Flat OPC XML 로 돌려주므로 COM 왕복 한 번으로 내용을 모두 읽는다.
-            ExportCommand.Run(owner, document.Path, document.Name,
+            ExportCommand.Run(owner, document.Name,
                               assetFolder => WordOpenXmlConverter.Convert(document.WordOpenXML, assetFolder));
         }
     }

@@ -29,7 +29,7 @@ namespace ExcelToMarkdown
                 return;
             }
 
-            ExportCommand.Run(owner, workbook.Path, workbook.Name,
+            ExportCommand.Run(owner, workbook.Name,
                               assetFolder => WorkbookExtractor.Extract(workbook, assetFolder));
         }
     }
